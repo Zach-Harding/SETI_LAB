@@ -1,8 +1,10 @@
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <assert.h>
 #include <pthread.h>
+#include <sched.h>
 
 #include "filter.h"
 #include "signal.h"
@@ -13,24 +15,39 @@
 #define ALIENS_LOW  50000.0
 #define ALIENS_HIGH 150000.0
 
-#define NUM_THREADS 4
+#define NUM_THREADS 12
+pthread_t* tid;  // array of thread ids
+
+// Struct for passing arguments to threads
+typedef struct {
+long myid;
+int num_processors;
+int num_bands;
+double bandwidth;
+int filter_order;
+signal* sig;
+double* band_power;
+} thread_args;
 
 // EACH WORKER RUNS THE BAND ANALYSIS FOR XYZ# BANDS
 void* worker(void* arg) {
     // need the following variables to do the work:
 
-    // start band
-    // end band
+    // myid
     // bandwidth
     // filter order
     // sig*
     // band_power*
+    // num_processors
 
     
     // for loop over band from start band to end band
     // do all of the functions
 
     thread_args* struct_data = (thread_args*)arg;
+
+    long myid = struct_data->myid;
+    int num_processors = struct_data->num_processors;
 
     double* filter_coeffs = (double*)malloc(sizeof(double) * (struct_data->filter_order + 1));
 
@@ -42,8 +59,14 @@ void* worker(void* arg) {
         exit(-1);
     }
 
+    int mystart = myid * (struct_data->num_bands / NUM_THREADS);
+    int myend   = (myid + 1) * (struct_data->num_bands / NUM_THREADS);
+    if (myid == NUM_THREADS - 1) {
+        myend = struct_data->num_bands;
+    }
 
-    for(int band = struct_data->start_band; band < struct_data->end_band; band++) {
+
+    for(int band = mystart; band < myend; band++) {
         // Make the filter
         generate_band_pass(struct_data->sig->Fs,
                            band * struct_data->bandwidth + 0.0001, // keep within limits
@@ -134,16 +157,7 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
   double filter_coeffs[filter_order + 1];
   double band_power[num_bands];
 
-
-  // Struct for passing arguments to threads
-  typedef struct {
-    int start_band;
-    int end_band;
-    double bandwidth;
-    int filter_order;
-    signal* sig;
-    double* band_power;
-  } thread_args;
+  pthread_t tid[NUM_THREADS];
 
   // ____________________________________________________________________________________
   // PARALLELIZE THIS LOOP
@@ -167,12 +181,11 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
 
 
   for(int i = 0; i < NUM_THREADS; i++) {
+    
     thread_args* args = (thread_args*)malloc(sizeof(thread_args));
-    args->start_band = i * (num_bands / NUM_THREADS);
-    args->end_band   = (i + 1) * (num_bands / NUM_THREADS);
-    if (i == NUM_THREADS - 1) {
-      args->end_band = num_bands;
-    }
+    args->myid = i;
+    args->num_processors = NUM_THREADS;
+    args->num_bands = num_bands;
     args->bandwidth = bandwidth;
     args->filter_order = filter_order;
     args->sig = sig;
