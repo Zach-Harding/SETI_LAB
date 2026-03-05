@@ -32,6 +32,8 @@ void* worker(void* arg) {
 
     thread_args* struct_data = (thread_args*)arg;
 
+    double* filter_coeffs = (double*)malloc(sizeof(double) * (struct_data->filter_order + 1));
+
     cpu_set_t set;
     CPU_ZERO(&set);
     CPU_SET(myid % num_processors, &set);
@@ -59,32 +61,10 @@ void* worker(void* arg) {
     }
 
 
- 
-  // This figures out the chunk of the vector I should
-  // work on based on my id
-  int mystart = myid * blocksize;
-  int myend   = 0;
-  if (myid == (num_threads - 1)) { // last thread
-    // the last thread will take care of the leftover
-    // elements of the vector, in case num_threads doesn't
-    // divide vector_len
-    // WARNING: this is a suboptimal solution. It means that the last thread
-    // might do much more work than the other threads (up to almost double)
-    // which will slow down the entire job. A better solution would split up
-    // remainder work equally between threads...
-    myend = vector_len;
-  } else {
-    myend = (myid + 1) * blocksize;
-  }
+    free(filter_coeffs);
 
-  // Now I sum that chunk and put the result in partial_sum
-  partial_sum[myid] = 0.0;
-  for (int i = mystart; i < myend; i++) {
-    partial_sum[myid] += vector[i];
-  }
-
-  // Done.  The master thread will sum up the partial sums
-  pthread_exit(NULL);           // finish - no return value
+    // Done.  The master thread will sum up the partial sums
+    pthread_exit(NULL);           // finish - no return value
 }
 
 
@@ -167,23 +147,56 @@ int analyze_signal(signal* sig, int filter_order, int num_bands, double* lb, dou
 
   // ____________________________________________________________________________________
   // PARALLELIZE THIS LOOP
-  for (int band = 0; band < num_bands; band++) {
-    // Make the filter
-    generate_band_pass(sig->Fs,
-                       band * bandwidth + 0.0001, // keep within limits
-                       (band + 1) * bandwidth - 0.0001,
-                       filter_order,
-                       filter_coeffs);
-    hamming_window(filter_order,filter_coeffs);
+//   for (int band = 0; band < num_bands; band++) {
+//     // Make the filter
+//     generate_band_pass(sig->Fs,
+//                        band * bandwidth + 0.0001, // keep within limits
+//                        (band + 1) * bandwidth - 0.0001,
+//                        filter_order,
+//                        filter_coeffs);
+//     hamming_window(filter_order,filter_coeffs);
 
-    // Convolve
-    convolve_and_compute_power(sig->num_samples,
-                               sig->data,
-                               filter_order,
-                               filter_coeffs,
-                               &(band_power[band]));
+//     // Convolve
+//     convolve_and_compute_power(sig->num_samples,
+//                                sig->data,
+//                                filter_order,
+//                                filter_coeffs,
+//                                &(band_power[band]));
 
+//   }
+
+
+  for(int i = 0; i < NUM_THREADS; i++) {
+    thread_args* args = (thread_args*)malloc(sizeof(thread_args));
+    args->start_band = i * (num_bands / NUM_THREADS);
+    args->end_band   = (i + 1) * (num_bands / NUM_THREADS);
+    if (i == NUM_THREADS - 1) {
+      args->end_band = num_bands;
+    }
+    args->bandwidth = bandwidth;
+    args->filter_order = filter_order;
+    args->sig = sig;
+    args->band_power = band_power;
+
+    int returncode = pthread_create(&(tid[i]),  // thread id gets put here
+                                    NULL, // use default attributes
+                                    worker, // thread will begin in this function
+                                    (void*)args // we'll give it i as the argument
+                                    );
+    if (returncode != 0) {
+      perror("Failed to start thread");
+      exit(-1);
+    }
   }
+
+  for(int i = 0; i < NUM_THREADS; i++) {
+    int returncode = pthread_join(tid[i], NULL);
+    if (returncode != 0) {
+      perror("join failed");
+      exit(-1);
+    }
+  }
+
 
   unsigned long long tend = get_cycle_count();
   double end = get_seconds();
