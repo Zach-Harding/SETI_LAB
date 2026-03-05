@@ -27,3 +27,7 @@ SUBMITTING AN EVALUATION JOB:
 SUBMITTING A HANDIN JOB:
 ./scripts/seti-run -n <netids> --handin -t <teamname> -k <key> -a <alien-id>
 
+
+
+
+goon squad
