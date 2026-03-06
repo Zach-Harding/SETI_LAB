@@ -1,0 +1,6 @@
+declare -x KEEP_SLURM_WORK_DIR=false
+declare -x RENAMED_WORK_DIR_PATH=/home/zmh8275/setilab/setilab-handout/seti-run-$SLURM_JOB_ID-eval-2026-03-05T21:47:14-06:00
+declare -x SETI_GOLDEN_DIR=/home/cs213lab/seti-scripts-slurm
+declare -x SETI_HANDOUT_DIR=/home/cs213lab/HANDOUT
+declare -x PERL5LIB=/home/cs213lab/seti-scripts-slurm
+declare -x SETI_EVAL_TO_RUN='/home/cs213lab/seti-scripts-slurm/seti-eval -n "zmh8275-fhh9287" -t "goon squad" -k c1c733627f73ec53a8f93523a382a1a9 -a 1'
