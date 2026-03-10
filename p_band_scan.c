@@ -49,7 +49,7 @@ void* worker(void* arg) {
     long myid = struct_data->myid;
     int num_processors = struct_data->num_processors;
 
-    double* filter_coeffs = (double*)malloc(sizeof(double) * (struct_data->filter_order + 1));
+    double filter_coeffs[(struct_data->filter_order + 1)];
 
     cpu_set_t set;
     CPU_ZERO(&set);
@@ -65,6 +65,7 @@ void* worker(void* arg) {
         myend = struct_data->num_bands;
     }
 
+    double local_band_power[myend - mystart];
 
     for(int band = mystart; band < myend; band++) {
         // Make the filter
@@ -80,11 +81,14 @@ void* worker(void* arg) {
                                    struct_data->sig->data,
                                    struct_data->filter_order,
                                    filter_coeffs,
-                                   &(struct_data->band_power[band]));
+                                   &(local_band_power[band - mystart]));
+    }
+
+    for(int band = mystart; band < myend; band++) {
+      struct_data->band_power[band] = local_band_power[band - mystart];
     }
 
 
-    free(filter_coeffs);
 
     // Done.  The master thread will sum up the partial sums
     pthread_exit(NULL);           // finish - no return value

@@ -30,8 +30,12 @@ band_scan: band_scan.c filter.h signal.h timing.h libfilter.a
 # You could add p_band_scan to the "all:" rule above so it runs by default
 #
 #
+# Define your optimization level and architecture
+CFLAGS = -O3 -march=native -ffast-math -flto -funroll-loops
+
 p_band_scan: p_band_scan.c filter.h signal.h timing.h libfilter.a
-	    $(CC) -pthread p_band_scan.c -L. -lfilter -lm -o p_band_scan
+	$(CC) $(CFLAGS) -pthread p_band_scan.c -L. -lfilter -lm -o p_band_scan
+
 #
 
 clean-filter:
