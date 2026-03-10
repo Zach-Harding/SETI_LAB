@@ -2,8 +2,10 @@
 # You can pick a different compiler here
 # and also choose different options
 
-CC = gcc -g -Wall
+CC = gcc
 AR = ar
+CFLAGS = -g -Wall -O3
+
 
 all: libfilter.a band_scan pthread-ex parallel-sum-ex p_band_scan
 
@@ -11,17 +13,17 @@ libfilter.a : filter.o signal.o timing.o
 	$(AR) ruv libfilter.a filter.o signal.o timing.o
 
 filter.o : filter.c filter.h
-	$(CC) -c filter.c
+	$(CC) $(CFLAGS) -c filter.c
 
 signal.o : signal.c signal.h
-	$(CC) -c signal.c
+	$(CC) $(CFLAGS) -c signal.c
 
 timing.o : timing.c timing.h
-	$(CC) -c timing.c
+	$(CC) $(CFLAGS) -c timing.c
 
 
 band_scan: band_scan.c filter.h signal.h timing.h libfilter.a
-	$(CC) band_scan.c -L. -lfilter -lm -o band_scan
+	$(CC) $(CFLAGS) band_scan.c -L. -lfilter -lm -o band_scan
 
 #
 # Your rule for p_band_scan will look like the following.  Note the use of the
@@ -31,7 +33,6 @@ band_scan: band_scan.c filter.h signal.h timing.h libfilter.a
 #
 #
 # Define your optimization level and architecture
-CFLAGS = -O3 -march=native -ffast-math -flto -funroll-loops
 
 p_band_scan: p_band_scan.c filter.h signal.h timing.h libfilter.a
 	$(CC) $(CFLAGS) -pthread p_band_scan.c -L. -lfilter -lm -o p_band_scan
